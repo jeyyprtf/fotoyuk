@@ -2,9 +2,20 @@
 
 Browser photobooth — private, playful, client-side only.
 
-- **Live:** https://fotoyuk.juan.web.id
+- **Live:** https://fotoyuk.juan.web.id (custom domain) · https://photobooth-iota-five.vercel.app (Vercel)
 - Photos never leave your device (camera + compose + AR in browser)
 - Anonymous telemetry only (Vercel Analytics events)
+
+### DNS (Cloudflare)
+
+```
+Type: CNAME
+Name: fotoyuk
+Target: cname.vercel-dns.com
+Proxy: DNS only (grey cloud)
+```
+
+Vercel project already has domain `fotoyuk.juan.web.id` attached.
 
 ## Dev
 
