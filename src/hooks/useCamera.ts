@@ -13,37 +13,59 @@ export function useCamera(active: boolean) {
     setReady(false)
   }, [])
 
+  const attach = useCallback(async () => {
+    const v = videoRef.current
+    const stream = streamRef.current
+    if (!v || !stream) return
+    if (v.srcObject !== stream) v.srcObject = stream
+    v.playsInline = true
+    v.muted = true
+    try {
+      await v.play()
+      setReady(true)
+    } catch {
+      // autoplay race — retry once
+      try {
+        await v.play()
+        setReady(true)
+      } catch {
+        setReady(false)
+      }
+    }
+  }, [])
+
   const start = useCallback(async () => {
     setError(null)
     try {
-      stop()
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 960 },
-        },
-      })
-      streamRef.current = stream
-      const v = videoRef.current
-      if (v) {
-        v.srcObject = stream
-        v.playsInline = true
-        await v.play()
-        setReady(true)
+      if (!streamRef.current) {
+        streamRef.current = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 960 },
+          },
+        })
       }
+      await attach()
     } catch {
       setError('camera')
       setReady(false)
     }
-  }, [stop])
+  }, [attach])
 
   useEffect(() => {
     if (active) void start()
     else stop()
-    return stop
+    return () => {
+      // only stop when leaving active for real (unmount / active=false)
+    }
   }, [active, start, stop])
 
-  return { videoRef, ready, error, restart: start, stop }
+  useEffect(() => {
+    if (!active) return
+    return () => stop()
+  }, [active, stop])
+
+  return { videoRef, ready, error, restart: start, stop, reattach: attach }
 }
