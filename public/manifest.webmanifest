@@ -1,0 +1,17 @@
+{
+  "name": "FotoYuk",
+  "short_name": "FotoYuk",
+  "description": "Photobooth di browser kamu — privat & playful",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF7F2",
+  "theme_color": "#FBF7F2",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
