@@ -95,7 +95,7 @@ export function Booth() {
   })
   const [sound, setSound] = useState(true)
   const camActive = phase === 'live' || phase === 'shooting'
-  const { videoRef, ready, error, restart } = useCamera(camActive)
+  const { videoRef, ready, error, errorDetail, restart } = useCamera(camActive)
   const arCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const [arReady, setArReady] = useState(false)
   const [arFail, setArFail] = useState(false)
@@ -447,8 +447,28 @@ export function Booth() {
               {error ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-cream">
                   <span className="text-4xl">📷</span>
-                  <p className="font-display font-bold">{d.cameraError}</p>
-                  <p className="text-sm text-white/70">{d.permissionHint}</p>
+                  <p className="font-display font-bold">
+                    {error === 'secure'
+                      ? d.cameraSecure
+                      : error === 'denied'
+                        ? d.cameraDenied
+                        : error === 'busy'
+                          ? d.cameraBusy
+                          : error === 'notfound'
+                            ? d.cameraNotFound
+                            : error === 'unsupported'
+                              ? d.cameraUnsupported
+                              : d.cameraError}
+                  </p>
+                  <p className="max-w-xs text-sm text-white/75">
+                    {error === 'denied' ? d.cameraDeniedHint : d.permissionHint}
+                  </p>
+                  <p className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-mono text-white/60">
+                    {typeof location !== 'undefined' ? location.host : ''}
+                  </p>
+                  {errorDetail && (
+                    <p className="max-w-xs break-all text-[10px] text-white/40">{errorDetail}</p>
+                  )}
                   <button type="button" onClick={() => void restart()} className="btn-secondary mt-1 px-5 py-2 text-sm">
                     {d.continue}
                   </button>
