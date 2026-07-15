@@ -13,6 +13,7 @@ import {
   LAYOUTS,
   SKINS,
   STICKERS,
+  TIMERS,
   type ArId,
   type BoothConfig,
   type EffectId,
@@ -20,6 +21,7 @@ import {
   type LayoutId,
   type OverlayItem,
   type SkinId,
+  type TimerSec,
 } from '../types'
 import { cssFilter } from '../lib/filters'
 import { captureVideoFrame, composeStrip } from '../lib/compose'
@@ -27,16 +29,29 @@ import { drawAr, ensureAr } from '../lib/ar'
 import { newId, saveGalleryItem } from '../lib/gallery'
 import { downloadBlob, shareBlob } from '../lib/export'
 import { track } from '../lib/telemetry'
+import { playPop, playShutter, playTick, unlockAudio } from '../lib/sfx'
 import { tf } from '../i18n'
 
-type Phase = 'setup' | 'shoot' | 'printing' | 'result' | 'edit'
+type Phase = 'live' | 'shooting' | 'printing' | 'result' | 'edit'
 
 const FRAME_SWATCH: Record<FrameId, string> = {
   polaroid: '#fffef9',
-  pastel: '#f7e9ee',
+  pastel: '#fdf0f3',
+  love: '#ffe4ec',
+  star: '#f4f0ff',
   film: '#1a1a1c',
   doodle: '#fffaf5',
   minimal: '#2a2a2e',
+}
+
+const FRAME_EMOJI: Record<FrameId, string> = {
+  polaroid: '📷',
+  pastel: '🌸',
+  love: '💕',
+  star: '⭐',
+  film: '🎬',
+  doodle: '🎀',
+  minimal: '⬛',
 }
 
 const EFFECT_PREVIEW: Record<EffectId, string> = {
@@ -58,20 +73,28 @@ const AR_EMOJI: Record<ArId, string> = {
   sparkle: '✨',
 }
 
+const fadeUp = {
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
+  transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] as const },
+}
+
 export function Booth() {
   const { d, lang } = useLang()
   const navigate = useNavigate()
-  const [phase, setPhase] = useState<Phase>('setup')
+  const [phase, setPhase] = useState<Phase>('live')
   const [cfg, setCfg] = useState<BoothConfig>({
     layout: '2x2',
-    frame: 'polaroid',
+    frame: 'love',
     effect: 'none',
     skin: 'none',
     ar: 'none',
     mirror: true,
+    timer: 3,
   })
-  // live preview cam on setup too
-  const camActive = phase === 'setup' || phase === 'shoot'
+  const [sound, setSound] = useState(true)
+  const camActive = phase === 'live' || phase === 'shooting'
   const { videoRef, ready, error, restart } = useCamera(camActive)
   const arCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const [arReady, setArReady] = useState(false)
@@ -90,9 +113,14 @@ export function Booth() {
   const [dragId, setDragId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [showConfetti, setShowConfetti] = useState(false)
+  const [shutterPulse, setShutterPulse] = useState(false)
   const lmRef = useRef<Awaited<ReturnType<typeof ensureAr>>>(null)
   const rafRef = useRef(0)
   const shootGen = useRef(0)
+  const soundRef = useRef(sound)
+  soundRef.current = sound
+  const cfgRef = useRef(cfg)
+  cfgRef.current = cfg
 
   const meta = useMemo(() => LAYOUTS.find((l) => l.id === cfg.layout)!, [cfg.layout])
 
@@ -114,7 +142,7 @@ export function Booth() {
   }, [cfg.ar])
 
   useEffect(() => {
-    if ((phase !== 'shoot' && phase !== 'setup') || cfg.ar === 'none') return
+    if (!camActive || cfg.ar === 'none') return
     const loop = () => {
       const v = videoRef.current
       const c = arCanvasRef.current
@@ -126,30 +154,36 @@ export function Booth() {
     }
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [phase, cfg.ar, ready, videoRef])
+  }, [camActive, cfg.ar, ready, videoRef])
+
+  const sfx = useCallback((fn: () => void) => {
+    if (soundRef.current) fn()
+  }, [])
 
   const takeShot = useCallback(() => {
     const v = videoRef.current
     if (!v) return null
+    const c = cfgRef.current
     return captureVideoFrame(
       v,
-      cfg.mirror,
-      cfg.effect,
-      cfg.skin,
-      cfg.ar !== 'none' ? arCanvasRef.current : null,
+      c.mirror,
+      c.effect,
+      c.skin,
+      c.ar !== 'none' ? arCanvasRef.current : null,
     )
-  }, [cfg, videoRef])
+  }, [videoRef])
 
-  // ponytail: snappy booth — first shot 3·2·1, next shots 2·1 (no dead air)
   const runCountdown = useCallback(
-    async (from = 3) => {
+    async (from: number) => {
       for (let n = from; n >= 1; n--) {
         setCountdown(n)
-        await sleep(450)
+        sfx(() => playTick(n))
+        await sleep(n <= 3 ? 520 : 700)
       }
       setCountdown(0)
+      sfx(playShutter)
       setFlash(true)
-      await sleep(90)
+      await sleep(100)
       setFlash(false)
       setCountdown(null)
       const frame = takeShot()
@@ -159,40 +193,51 @@ export function Booth() {
       setPreviewThumbs((t) => [...t, url])
       setShotIdx(shotsRef.current.length)
     },
-    [takeShot],
+    [takeShot, sfx],
   )
 
-  const startShoot = () => {
+  const pressShutter = () => {
+    if (!ready || error || phase !== 'live') return
+    unlockAudio()
+    sfx(playPop)
     track('layout_select', { layout: cfg.layout })
     track('filter_select', { type: 'effect', id: cfg.effect })
     track('filter_select', { type: 'skin', id: cfg.skin })
     track('filter_select', { type: 'ar', id: cfg.ar })
+    track('filter_select', { type: 'timer', id: cfg.timer })
     setOverlays([])
     setSaved(false)
     setShowConfetti(false)
-    setPhase('shoot')
+    setShutterPulse(true)
+    setTimeout(() => setShutterPulse(false), 300)
+    setPhase('shooting')
   }
 
+  // Manual shutter → only then run multi-shot sequence
   useEffect(() => {
-    if (phase !== 'shoot' || !ready) return
+    if (phase !== 'shooting' || !ready) return
     const gen = ++shootGen.current
+    const c = cfgRef.current
+    const shots = LAYOUTS.find((l) => l.id === c.layout)!.shots
     shotsRef.current = []
     setPreviewThumbs([])
     setShotIdx(0)
     ;(async () => {
-      await sleep(200)
+      await sleep(280)
       if (shootGen.current !== gen) return
-      for (let i = 0; i < meta.shots; i++) {
+      for (let i = 0; i < shots; i++) {
         if (shootGen.current !== gen) return
-        await runCountdown(i === 0 ? 3 : 2)
+        // first shot uses full timer; follow-ups stay snappy but still use timer if ≤3 else min 3
+        const from = i === 0 ? c.timer : Math.min(c.timer, 3)
+        await runCountdown(from)
         if (shootGen.current !== gen) return
-        if (i < meta.shots - 1) await sleep(220)
+        if (i < shots - 1) await sleep(200)
       }
       if (shootGen.current !== gen) return
       try {
         const blob = await composeStrip(shotsRef.current, {
-          layout: cfg.layout,
-          frame: cfg.frame,
+          layout: c.layout,
+          frame: c.frame,
           effect: 'none',
           skin: 'none',
           brand: d.brand,
@@ -202,13 +247,13 @@ export function Booth() {
         setResultBlob(blob)
         setResultUrl(url)
         setBaseUrl(url)
-        track('capture_complete', { shots: meta.shots })
+        track('capture_complete', { shots })
         setPhase('printing')
       } catch (e) {
         console.error(e)
         if (shootGen.current === gen) {
           setToast(lang === 'id' ? 'Gagal compose — coba lagi ya' : 'Compose failed — try again')
-          setPhase('setup')
+          setPhase('live')
         }
       }
     })()
@@ -220,9 +265,10 @@ export function Booth() {
 
   const recomposeWithOverlays = async (ovs: OverlayItem[]) => {
     if (!shotsRef.current.length) return
+    const c = cfgRef.current
     const blob = await composeStrip(shotsRef.current, {
-      layout: cfg.layout,
-      frame: cfg.frame,
+      layout: c.layout,
+      frame: c.frame,
       effect: 'none',
       skin: 'none',
       overlays: ovs,
@@ -237,23 +283,26 @@ export function Booth() {
   const finishPrint = () => {
     setPhase('result')
     setShowConfetti(true)
+    sfx(playPop)
     setTimeout(() => setShowConfetti(false), 1600)
   }
 
   const save = async () => {
     if (!resultBlob) return
+    const c = cfgRef.current
     await saveGalleryItem({
       id: newId(),
       blob: resultBlob,
       createdAt: Date.now(),
-      layout: cfg.layout,
-      frame: cfg.frame,
-      effect: cfg.effect,
-      skin: cfg.skin,
-      ar: cfg.ar,
+      layout: c.layout,
+      frame: c.frame,
+      effect: c.effect,
+      skin: c.skin,
+      ar: c.ar,
     })
     setSaved(true)
     setToast(d.saved)
+    sfx(playPop)
   }
 
   const addEmoji = (emoji: string) => {
@@ -261,13 +310,14 @@ export function Booth() {
       id: newId(),
       kind: 'emoji',
       content: emoji,
-      x: 0.5 + (Math.random() - 0.5) * 0.2,
-      y: 0.45 + (Math.random() - 0.5) * 0.2,
+      x: 0.5 + (Math.random() - 0.5) * 0.25,
+      y: 0.45 + (Math.random() - 0.5) * 0.25,
       scale: 1,
       rotation: 0,
     }
     const next = [...overlays, item]
     setOverlays(next)
+    sfx(playPop)
     void recomposeWithOverlays(next)
   }
 
@@ -310,12 +360,12 @@ export function Booth() {
     shootGen.current++
     setCountdown(null)
     setFlash(false)
-    setPhase('setup')
+    setPhase('live')
   }
 
   const retake = () => {
     shootGen.current++
-    setPhase('setup')
+    setPhase('live')
     if (resultUrl && resultUrl !== baseUrl) URL.revokeObjectURL(resultUrl)
     if (baseUrl) URL.revokeObjectURL(baseUrl)
     setResultUrl(null)
@@ -325,41 +375,57 @@ export function Booth() {
     setSaved(false)
   }
 
-  const showCam = phase === 'setup' || phase === 'shoot'
+  const pick = <K extends keyof BoothConfig>(key: K, value: BoothConfig[K]) => {
+    setCfg((c) => ({ ...c, [key]: value }))
+    sfx(playPop)
+  }
+
+  const showCam = phase === 'live' || phase === 'shooting'
 
   return (
-    <div className="space-y-5 pb-28">
-      <div className="flex items-center justify-between gap-3">
+    <div className={['space-y-4', phase === 'live' ? 'pb-36' : 'pb-16'].join(' ')}>
+      <motion.div
+        className="flex items-center justify-between gap-3"
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
         <Link
           to="/"
           className="inline-flex items-center gap-1 rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-ink-soft ring-1 ring-line transition hover:bg-white"
         >
           ← {d.back}
         </Link>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-sage-deep ring-1 ring-line">
-          <span className="h-1.5 w-1.5 rounded-full bg-sage-deep pulse-soft" />
-          {d.privacyBadge}
-        </span>
-      </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              unlockAudio()
+              setSound((s) => !s)
+            }}
+            className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-ink-soft ring-1 ring-line"
+          >
+            {sound ? `🔊 ${d.soundOn}` : `🔇 ${d.soundOff}`}
+          </button>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-sage-deep ring-1 ring-line">
+            <span className="h-1.5 w-1.5 rounded-full bg-sage-deep pulse-soft" />
+            {d.privacyBadge}
+          </span>
+        </div>
+      </motion.div>
 
-      {/* Shared camera stage — stays mounted across setup→shoot so stream doesn't drop */}
-      {showCam && (
-        <div className="space-y-4">
-          {phase === 'setup' && (
-            <div>
-              <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-                {lang === 'id' ? 'Siapin look kamu' : 'Set your look'}
-              </h1>
-              <p className="mt-1 text-sm text-ink-soft">
-                {lang === 'id'
-                  ? 'Preview live · pilih layout, frame, filter, AR'
-                  : 'Live preview · pick layout, frame, filters, AR'}
-              </p>
-            </div>
-          )}
+      <AnimatePresence mode="wait">
+        {showCam && (
+          <motion.div key="cam" {...fadeUp} className="space-y-4">
+            {phase === 'live' && (
+              <div>
+                <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
+                  {lang === 'id' ? 'Booth live ✨' : 'Live booth ✨'}
+                </h1>
+                <p className="mt-1 text-sm text-ink-soft">{d.readyHint}</p>
+              </div>
+            )}
 
-          {phase === 'shoot' && (
-            <>
+            {phase === 'shooting' && (
               <div className="flex items-center justify-between">
                 <p className="font-display text-sm font-extrabold text-ink">
                   {tf(d.shotOf, { n: Math.min(shotIdx + 1, meta.shots), total: meta.shots })}
@@ -372,10 +438,14 @@ export function Booth() {
                   {d.back}
                 </button>
               </div>
+            )}
+
+            {phase === 'shooting' && (
               <div className="flex items-center justify-center gap-1.5">
                 {Array.from({ length: meta.shots }).map((_, i) => (
-                  <span
+                  <motion.span
                     key={i}
+                    layout
                     className={[
                       'shot-dot',
                       i < shotIdx ? 'shot-dot-done' : '',
@@ -384,120 +454,139 @@ export function Booth() {
                   />
                 ))}
               </div>
-            </>
-          )}
-
-          <div className="relative mx-auto aspect-[3/4] w-full max-w-md overflow-hidden rounded-[1.75rem] bg-ink shadow-lift ring-1 ring-line">
-            {error ? (
-              <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-cream">
-                <span className="text-4xl">📷</span>
-                <p className="font-display font-bold">{d.cameraError}</p>
-                <p className="text-sm text-white/70">{d.permissionHint}</p>
-                <button type="button" onClick={() => void restart()} className="btn-secondary mt-1 px-5 py-2 text-sm">
-                  {d.continue}
-                </button>
-              </div>
-            ) : (
-              <>
-                {!ready && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-ink/80 text-sm font-semibold text-white/80">
-                    <span className="pulse-soft">{lang === 'id' ? 'Buka kamera…' : 'Opening camera…'}</span>
-                  </div>
-                )}
-                <video
-                  ref={videoRef}
-                  playsInline
-                  muted
-                  autoPlay
-                  className={['absolute inset-0 h-full w-full object-cover', cfg.mirror ? 'mirror' : ''].join(' ')}
-                  style={{ filter: cssFilter(cfg.effect, cfg.skin) }}
-                />
-                <canvas
-                  ref={arCanvasRef}
-                  className={[
-                    'pointer-events-none absolute inset-0 h-full w-full object-cover',
-                    cfg.mirror ? 'mirror' : '',
-                  ].join(' ')}
-                />
-                {phase === 'setup' && (
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/55 to-transparent p-4 pt-12">
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                        {d.layouts[cfg.layout]}
-                      </span>
-                      <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                        {d.frames[cfg.frame]}
-                      </span>
-                      {cfg.effect !== 'none' && (
-                        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                          {d.effects[cfg.effect]}
-                        </span>
-                      )}
-                      {cfg.ar !== 'none' && (
-                        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                          {AR_EMOJI[cfg.ar]} {d.ars[cfg.ar]}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-                <AnimatePresence mode="wait">
-                  {phase === 'shoot' && countdown !== null && (
-                    <motion.div
-                      key={countdown}
-                      className="absolute inset-0 z-10 flex items-center justify-center bg-ink/25"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                    >
-                      <span className="countdown-pop font-display text-8xl font-extrabold text-white drop-shadow-lg">
-                        {countdown === 0 ? '📸' : countdown}
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                {flash && <div className="flash-out absolute inset-0 z-20 bg-white" />}
-              </>
             )}
-          </div>
 
-          {phase === 'shoot' && previewThumbs.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {previewThumbs.map((u, i) => (
-                <motion.img
-                  key={i}
-                  src={u}
-                  alt=""
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="h-[4.5rem] w-14 rounded-xl object-cover shadow-soft ring-1 ring-line"
-                />
-              ))}
-              {Array.from({ length: meta.shots - previewThumbs.length }).map((_, i) => (
-                <div
-                  key={`e-${i}`}
-                  className="flex h-[4.5rem] w-14 items-center justify-center rounded-xl bg-white/70 text-xs text-ink-soft ring-1 ring-dashed ring-line"
-                >
-                  ·
+            {/* LIVE CAMERA + filter preview */}
+            <div className="relative mx-auto aspect-[3/4] w-full max-w-md overflow-hidden rounded-[1.75rem] bg-ink shadow-lift ring-1 ring-line">
+              {error ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-cream">
+                  <span className="text-4xl">📷</span>
+                  <p className="font-display font-bold">{d.cameraError}</p>
+                  <p className="text-sm text-white/70">{d.permissionHint}</p>
+                  <button type="button" onClick={() => void restart()} className="btn-secondary mt-1 px-5 py-2 text-sm">
+                    {d.continue}
+                  </button>
                 </div>
-              ))}
+              ) : (
+                <>
+                  {!ready && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-ink/80 text-sm font-semibold text-white/80">
+                      <span className="pulse-soft">{lang === 'id' ? 'Buka kamera…' : 'Opening camera…'}</span>
+                    </div>
+                  )}
+                  <video
+                    ref={videoRef}
+                    playsInline
+                    muted
+                    autoPlay
+                    className={['absolute inset-0 h-full w-full object-cover transition-[filter] duration-300', cfg.mirror ? 'mirror' : ''].join(' ')}
+                    style={{ filter: cssFilter(cfg.effect, cfg.skin) }}
+                  />
+                  <canvas
+                    ref={arCanvasRef}
+                    className={[
+                      'pointer-events-none absolute inset-0 h-full w-full object-cover',
+                      cfg.mirror ? 'mirror' : '',
+                    ].join(' ')}
+                  />
+
+                  {/* frame color hint border on preview */}
+                  <div
+                    className="pointer-events-none absolute inset-2 rounded-[1.35rem] ring-4 transition-colors duration-300"
+                    style={{
+                      boxShadow: `inset 0 0 0 3px ${FRAME_SWATCH[cfg.frame]}88`,
+                      borderRadius: '1.35rem',
+                    }}
+                  />
+
+                  {phase === 'live' && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/60 to-transparent p-4 pt-14">
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                          {d.layouts[cfg.layout]}
+                        </span>
+                        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                          {FRAME_EMOJI[cfg.frame]} {d.frames[cfg.frame]}
+                        </span>
+                        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                          ⏱ {cfg.timer}s
+                        </span>
+                        {cfg.effect !== 'none' && (
+                          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                            {d.effects[cfg.effect]}
+                          </span>
+                        )}
+                        {cfg.ar !== 'none' && (
+                          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                            {AR_EMOJI[cfg.ar]} {d.ars[cfg.ar]}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <AnimatePresence mode="wait">
+                    {phase === 'shooting' && countdown !== null && (
+                      <motion.div
+                        key={countdown}
+                        className="absolute inset-0 z-10 flex items-center justify-center bg-ink/30"
+                        initial={{ opacity: 0, scale: 0.7 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.15 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <span className="countdown-pop font-display text-8xl font-extrabold text-white drop-shadow-lg">
+                          {countdown === 0 ? '📸' : countdown}
+                        </span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {flash && <div className="flash-out absolute inset-0 z-20 bg-white" />}
+                </>
+              )}
             </div>
-          )}
-        </div>
-      )}
 
-      {/* SETUP options (below live preview) */}
-      {phase === 'setup' && (
-        <div className="space-y-5">
+            {phase === 'shooting' && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {previewThumbs.map((u, i) => (
+                  <motion.img
+                    key={i}
+                    src={u}
+                    alt=""
+                    initial={{ opacity: 0, y: 10, scale: 0.85 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="h-[4.5rem] w-14 rounded-xl object-cover shadow-soft ring-1 ring-line"
+                  />
+                ))}
+                {Array.from({ length: meta.shots - previewThumbs.length }).map((_, i) => (
+                  <div
+                    key={`e-${i}`}
+                    className="flex h-[4.5rem] w-14 items-center justify-center rounded-xl bg-white/70 text-xs text-ink-soft ring-1 ring-dashed ring-line"
+                  >
+                    ·
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          {/* Layout visual cards */}
+      {/* LIVE CONTROLS — always with camera */}
+      {phase === 'live' && (
+        <motion.div
+          className="space-y-5"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.05 }}
+        >
           <Section title={d.layoutLabel} hint={`${meta.shots} shots`}>
             <div className="grid w-full grid-cols-4 gap-2">
               {LAYOUTS.map((l) => (
                 <PickCard
                   key={l.id}
                   active={cfg.layout === l.id}
-                  onClick={() => setCfg((c) => ({ ...c, layout: l.id as LayoutId }))}
+                  onClick={() => pick('layout', l.id as LayoutId)}
                   className="p-2"
                 >
                   <div
@@ -505,7 +594,11 @@ export function Booth() {
                     style={{ gridTemplateColumns: `repeat(${l.cols}, 1fr)` }}
                   >
                     {Array.from({ length: l.shots }).map((_, i) => (
-                      <div key={i} className="aspect-[3/4] rounded-[2px] bg-rose/50" />
+                      <motion.div
+                        key={i}
+                        layout
+                        className="aspect-[3/4] rounded-[2px] bg-rose/55"
+                      />
                     ))}
                   </div>
                   <div className="text-center text-[11px] font-bold text-ink">{d.layouts[l.id]}</div>
@@ -520,22 +613,32 @@ export function Booth() {
                 <PickCard
                   key={f}
                   active={cfg.frame === f}
-                  onClick={() => setCfg((c) => ({ ...c, frame: f as FrameId }))}
-                  className="min-w-[4.75rem] p-2"
+                  onClick={() => pick('frame', f as FrameId)}
+                  className="min-w-[5rem] p-2"
                 >
                   <div
-                    className="mb-1.5 flex aspect-[3/4] items-center justify-center rounded-md"
+                    className="mb-1.5 flex aspect-[3/4] items-center justify-center rounded-md text-xl"
                     style={{ background: FRAME_SWATCH[f] }}
                   >
-                    <div
-                      className="h-[55%] w-[55%] rounded-sm"
-                      style={{
-                        background: f === 'film' || f === 'minimal' ? '#555' : '#e8b4b8',
-                        boxShadow: f === 'polaroid' ? '0 2px 0 #eee' : undefined,
-                      }}
-                    />
+                    {FRAME_EMOJI[f]}
                   </div>
                   <div className="text-center text-[11px] font-bold">{d.frames[f]}</div>
+                </PickCard>
+              ))}
+            </div>
+          </Section>
+
+          <Section title={d.timerLabel}>
+            <div className="grid w-full grid-cols-3 gap-2">
+              {TIMERS.map((t) => (
+                <PickCard
+                  key={t}
+                  active={cfg.timer === t}
+                  onClick={() => pick('timer', t as TimerSec)}
+                  className="p-3 text-center"
+                >
+                  <div className="font-display text-2xl font-extrabold">{t}</div>
+                  <div className="text-[11px] font-bold text-ink-soft">detik</div>
                 </PickCard>
               ))}
             </div>
@@ -547,11 +650,11 @@ export function Booth() {
                 <PickCard
                   key={e}
                   active={cfg.effect === e}
-                  onClick={() => setCfg((c) => ({ ...c, effect: e as EffectId }))}
+                  onClick={() => pick('effect', e as EffectId)}
                   className="min-w-[4.5rem] p-2"
                 >
                   <div
-                    className="mb-1.5 aspect-square rounded-lg bg-gradient-to-br from-rose via-peach to-lilac"
+                    className="mb-1.5 aspect-square rounded-lg bg-gradient-to-br from-rose via-peach to-lilac transition-[filter] duration-300"
                     style={{ filter: EFFECT_PREVIEW[e] }}
                   />
                   <div className="text-center text-[11px] font-bold">{d.effects[e]}</div>
@@ -562,11 +665,7 @@ export function Booth() {
 
           <Section title={d.skinLabel}>
             {SKINS.map((s) => (
-              <Chip
-                key={s}
-                active={cfg.skin === s}
-                onClick={() => setCfg((c) => ({ ...c, skin: s as SkinId }))}
-              >
+              <Chip key={s} active={cfg.skin === s} onClick={() => pick('skin', s as SkinId)}>
                 {d.skins[s]}
               </Chip>
             ))}
@@ -578,10 +677,15 @@ export function Booth() {
                 <PickCard
                   key={a}
                   active={cfg.ar === a}
-                  onClick={() => setCfg((c) => ({ ...c, ar: a as ArId }))}
+                  onClick={() => pick('ar', a as ArId)}
                   className="p-2.5"
                 >
-                  <div className="text-center text-2xl">{AR_EMOJI[a]}</div>
+                  <motion.div
+                    className="text-center text-2xl"
+                    whileTap={{ scale: 1.2, rotate: -8 }}
+                  >
+                    {AR_EMOJI[a]}
+                  </motion.div>
                   <div className="mt-1 text-center text-[10px] font-bold leading-tight">{d.ars[a]}</div>
                 </PickCard>
               ))}
@@ -594,19 +698,14 @@ export function Booth() {
 
           <button
             type="button"
-            onClick={() => setCfg((c) => ({ ...c, mirror: !c.mirror }))}
+            onClick={() => pick('mirror', !cfg.mirror)}
             className={[
               'flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold ring-1 transition',
               cfg.mirror ? 'bg-white ring-ink/20' : 'bg-white/60 ring-line',
             ].join(' ')}
           >
             <span>{d.mirror}</span>
-            <span
-              className={[
-                'relative h-7 w-12 rounded-full transition',
-                cfg.mirror ? 'bg-ink' : 'bg-line',
-              ].join(' ')}
-            >
+            <span className={['relative h-7 w-12 rounded-full transition', cfg.mirror ? 'bg-ink' : 'bg-line'].join(' ')}>
               <span
                 className={[
                   'absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition',
@@ -616,28 +715,36 @@ export function Booth() {
             </span>
           </button>
 
-          {/* sticky CTA */}
-          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line/70 bg-cream/90 px-4 py-3 backdrop-blur-xl safe-bottom">
-            <div className="mx-auto max-w-3xl">
-              <button
+          {/* sticky shutter */}
+          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line/70 bg-cream/92 px-4 py-3 backdrop-blur-xl safe-bottom">
+            <div className="mx-auto flex max-w-3xl items-center gap-3">
+              <div className="hidden min-w-0 flex-1 text-xs font-semibold text-ink-soft sm:block">
+                {d.layouts[cfg.layout]} · {d.frames[cfg.frame]} · ⏱{cfg.timer}s · {meta.shots}×
+              </div>
+              <motion.button
                 type="button"
-                onClick={startShoot}
-                disabled={!!error}
-                className="btn-primary w-full py-4 text-lg disabled:opacity-50"
+                onClick={pressShutter}
+                disabled={!!error || !ready}
+                whileTap={{ scale: 0.94 }}
+                animate={shutterPulse ? { scale: [1, 0.92, 1.04, 1] } : {}}
+                className="btn-primary relative mx-auto flex h-[4.25rem] w-[4.25rem] shrink-0 items-center justify-center rounded-full p-0 text-2xl shadow-lift disabled:opacity-50 sm:mx-0"
+                aria-label={d.shutter}
               >
-                <span>📸</span> {d.capture}
-                <span className="ml-1 text-sm font-semibold opacity-70">· {meta.shots}×</span>
-              </button>
+                <span className="absolute inset-1 rounded-full border-2 border-cream/40" />
+                📸
+              </motion.button>
+              <div className="flex-1 text-right text-sm font-bold text-ink sm:flex-none">
+                {d.shutter}
+              </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {phase === 'printing' && resultUrl && <PrintAnim src={resultUrl} onDone={finishPrint} />}
 
-      {/* RESULT / EDIT */}
       {(phase === 'result' || phase === 'edit') && resultUrl && (
-        <div className="relative space-y-4">
+        <motion.div className="relative space-y-4" {...fadeUp}>
           {showConfetti && <Confetti />}
           <div className="text-center">
             <h2 className="font-display text-2xl font-extrabold">
@@ -666,10 +773,12 @@ export function Booth() {
             onPointerUp={phase === 'edit' ? onPointerUp : undefined}
             onPointerLeave={phase === 'edit' ? onPointerUp : undefined}
           >
-            <img
+            <motion.img
               src={phase === 'edit' ? (baseUrl ?? resultUrl) : resultUrl}
               alt=""
               className="w-full rounded-2xl shadow-lift ring-1 ring-line"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
             />
             {phase === 'edit' &&
               overlays.map((o) => (
@@ -797,7 +906,7 @@ export function Booth() {
               {d.gallery} →
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}

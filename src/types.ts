@@ -1,15 +1,16 @@
 export type LayoutId = '1x1' | '2x2' | '2x3' | '2x4'
-export type FrameId = 'polaroid' | 'pastel' | 'film' | 'doodle' | 'minimal'
+export type FrameId = 'polaroid' | 'pastel' | 'love' | 'film' | 'doodle' | 'minimal' | 'star'
 export type EffectId = 'none' | 'soft' | 'vignette' | 'grain' | 'leak' | 'bw' | 'warm' | 'cool'
 export type SkinId = 'none' | 'glow' | 'peach' | 'porcelain' | 'even'
 export type ArId = 'none' | 'dog' | 'cat' | 'hearts' | 'sparkle'
+export type TimerSec = 3 | 5 | 10
 export type Lang = 'id' | 'en'
 
 export type OverlayItem = {
   id: string
   kind: 'text' | 'emoji' | 'sticker'
   content: string
-  x: number // 0-1 relative
+  x: number
   y: number
   scale: number
   rotation: number
@@ -34,6 +35,7 @@ export type BoothConfig = {
   skin: SkinId
   ar: ArId
   mirror: boolean
+  timer: TimerSec
 }
 
 export const LAYOUTS: { id: LayoutId; cols: number; rows: number; shots: number }[] = [
@@ -43,9 +45,10 @@ export const LAYOUTS: { id: LayoutId; cols: number; rows: number; shots: number 
   { id: '2x4', cols: 2, rows: 4, shots: 8 },
 ]
 
-export const FRAMES: FrameId[] = ['polaroid', 'pastel', 'film', 'doodle', 'minimal']
+export const FRAMES: FrameId[] = ['polaroid', 'pastel', 'love', 'star', 'film', 'doodle', 'minimal']
 export const EFFECTS: EffectId[] = ['none', 'soft', 'vignette', 'grain', 'leak', 'bw', 'warm', 'cool']
 export const SKINS: SkinId[] = ['none', 'glow', 'peach', 'porcelain', 'even']
 export const ARS: ArId[] = ['none', 'dog', 'cat', 'hearts', 'sparkle']
+export const TIMERS: TimerSec[] = [3, 5, 10]
 
-export const STICKERS = ['⭐', '✨', '💕', '🌸', '🦋', '🌈', '☁️', '🍀', '🎀', '💫', '🐱', '🐶', '🐰', '🍓', '🍋', '🧋']
+export const STICKERS = ['⭐', '✨', '💕', '🌸', '🦋', '🌈', '☁️', '🍀', '🎀', '💫', '🐱', '🐶', '🐰', '🍓', '🍋', '🧋', '💖', '🥰', '💗', '💘']
