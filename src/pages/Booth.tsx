@@ -92,6 +92,7 @@ export function Booth() {
     ar: 'none',
     mirror: true,
     timer: 3,
+    screenFlash: false,
   })
   const [sound, setSound] = useState(true)
   const camActive = phase === 'live' || phase === 'shooting'
@@ -107,6 +108,7 @@ export function Booth() {
   const [resultBlob, setResultBlob] = useState<Blob | null>(null)
   const [baseUrl, setBaseUrl] = useState<string | null>(null)
   const [flash, setFlash] = useState(false)
+  const [screenFlashLit, setScreenFlashLit] = useState(false)
   const [overlays, setOverlays] = useState<OverlayItem[]>([])
   const [saved, setSaved] = useState(false)
   const [textDraft, setTextDraft] = useState('')
@@ -182,12 +184,22 @@ export function Booth() {
         await sleep(n <= 3 ? 520 : 700)
       }
       setCountdown(0)
+      // screen flash: light up BEFORE capture so face is lit
+      const useFlash = cfgRef.current.screenFlash
+      if (useFlash) {
+        setScreenFlashLit(true)
+        await sleep(160) // let exposure adapt to white screen
+      }
       sfx(playShutter)
       setFlash(true)
-      await sleep(100)
+      await sleep(useFlash ? 40 : 100)
+      const frame = takeShot()
+      if (useFlash) {
+        await sleep(80)
+        setScreenFlashLit(false)
+      }
       setFlash(false)
       setCountdown(null)
-      const frame = takeShot()
       if (!frame) return
       shotsRef.current.push(frame)
       const url = frame.toDataURL('image/jpeg', 0.72)
@@ -361,6 +373,7 @@ export function Booth() {
     shootGen.current++
     setCountdown(null)
     setFlash(false)
+    setScreenFlashLit(false)
     setPhase('live')
   }
 
@@ -426,8 +439,22 @@ export function Booth() {
                   'rounded-full px-2.5 py-1.5 text-xs font-bold backdrop-blur-md',
                   cfg.mirror ? 'bg-white text-ink' : 'bg-black/35 text-white',
                 ].join(' ')}
+                aria-label={d.mirror}
+                title={d.mirror}
               >
                 🪞
+              </button>
+              <button
+                type="button"
+                onClick={() => pick('screenFlash', !cfg.screenFlash)}
+                className={[
+                  'rounded-full px-2.5 py-1.5 text-xs font-bold backdrop-blur-md',
+                  cfg.screenFlash ? 'bg-white text-ink' : 'bg-black/35 text-white',
+                ].join(' ')}
+                aria-label={cfg.screenFlash ? d.flashOn : d.flashOff}
+                title={cfg.screenFlash ? d.flashOn : d.flashOff}
+              >
+                {cfg.screenFlash ? '⚡' : '🔦'}
               </button>
               {phase === 'shooting' && (
                 <button
@@ -572,11 +599,22 @@ export function Booth() {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  {flash && <div className="flash-out absolute inset-0 z-20 bg-white" />}
+                  {flash && !cfg.screenFlash && (
+                    <div className="flash-out absolute inset-0 z-20 bg-white" />
+                  )}
                 </>
               )}
             </div>
           </div>
+
+          {/* full-viewport white torch when screen flash is on */}
+          <div
+            className={[
+              'screen-flash',
+              screenFlashLit ? 'screen-flash-on' : 'screen-flash-off',
+            ].join(' ')}
+            aria-hidden
+          />
 
           {phase === 'shooting' && previewThumbs.length > 0 && (
             <div className="h-scroll bg-ink px-3 py-2">

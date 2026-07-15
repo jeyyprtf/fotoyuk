@@ -36,6 +36,7 @@ export type BoothConfig = {
   ar: ArId
   mirror: boolean
   timer: TimerSec
+  screenFlash: boolean
 }
 
 export const LAYOUTS: { id: LayoutId; cols: number; rows: number; shots: number }[] = [

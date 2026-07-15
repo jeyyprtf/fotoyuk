@@ -255,6 +255,24 @@ a {
   animation: flash-out 0.25s ease-out forwards;
 }
 
+/* full-screen white torch for front-camera lighting */
+.screen-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: #fff;
+  opacity: 0;
+}
+.screen-flash-on {
+  opacity: 1;
+  transition: opacity 0.05s linear;
+}
+.screen-flash-off {
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+}
+
 @keyframes toast-in {
   from {
     transform: translateY(12px);
