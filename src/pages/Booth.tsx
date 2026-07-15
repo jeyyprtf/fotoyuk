@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLang } from '../hooks/useLang'
 import { useCamera } from '../hooks/useCamera'
-import { Chip, PickCard, Section } from '../components/Chip'
+import { FilterBubble, Section } from '../components/Chip'
 import { PrintAnim } from '../components/PrintAnim'
 import { Confetti, Toast } from '../components/Toast'
 import {
@@ -114,6 +114,7 @@ export function Booth() {
   const [toast, setToast] = useState<string | null>(null)
   const [showConfetti, setShowConfetti] = useState(false)
   const [shutterPulse, setShutterPulse] = useState(false)
+  const [trayTab, setTrayTab] = useState<'filter' | 'frame' | 'layout' | 'ar' | 'timer'>('filter')
   const lmRef = useRef<Awaited<ReturnType<typeof ensureAr>>>(null)
   const rafRef = useRef(0)
   const shootGen = useRef(0)
@@ -382,82 +383,67 @@ export function Booth() {
 
   const showCam = phase === 'live' || phase === 'shooting'
 
+  const tabs: { id: typeof trayTab; label: string }[] = [
+    { id: 'filter', label: d.effectsLabel },
+    { id: 'frame', label: d.frameLabel },
+    { id: 'layout', label: d.layoutLabel },
+    { id: 'ar', label: d.arLabel },
+    { id: 'timer', label: d.timerLabel },
+  ]
+
   return (
-    <div className={['space-y-4', phase === 'live' ? 'pb-36' : 'pb-16'].join(' ')}>
-      <motion.div
-        className="flex items-center justify-between gap-3"
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1 rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-ink-soft ring-1 ring-line transition hover:bg-white"
-        >
-          ← {d.back}
-        </Link>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              unlockAudio()
-              setSound((s) => !s)
-            }}
-            className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-ink-soft ring-1 ring-line"
-          >
-            {sound ? `🔊 ${d.soundOn}` : `🔇 ${d.soundOff}`}
-          </button>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-sage-deep ring-1 ring-line">
-            <span className="h-1.5 w-1.5 rounded-full bg-sage-deep pulse-soft" />
-            {d.privacyBadge}
-          </span>
-        </div>
-      </motion.div>
-
-      <AnimatePresence mode="wait">
-        {showCam && (
-          <motion.div key="cam" {...fadeUp} className="space-y-4">
-            {phase === 'live' && (
-              <div>
-                <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-                  {lang === 'id' ? 'Booth live ✨' : 'Live booth ✨'}
-                </h1>
-                <p className="mt-1 text-sm text-ink-soft">{d.readyHint}</p>
-              </div>
-            )}
-
-            {phase === 'shooting' && (
-              <div className="flex items-center justify-between">
-                <p className="font-display text-sm font-extrabold text-ink">
-                  {tf(d.shotOf, { n: Math.min(shotIdx + 1, meta.shots), total: meta.shots })}
-                </p>
+    <div
+      className={[
+        phase === 'live' || phase === 'shooting' ? 'min-h-dvh bg-ink' : 'space-y-4 px-4 pb-16 pt-3',
+      ].join(' ')}
+    >
+      {/* ===== LIVE / SHOOTING: sticky preview + horizontal tray ===== */}
+      {showCam && (
+        <div className="flex min-h-dvh flex-col">
+          {/* top bar over camera */}
+          <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1 rounded-full bg-black/35 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md"
+            >
+              ← {d.back}
+            </Link>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  unlockAudio()
+                  setSound((s) => !s)
+                }}
+                className="rounded-full bg-black/35 px-2.5 py-1.5 text-xs font-bold text-white backdrop-blur-md"
+              >
+                {sound ? '🔊' : '🔇'}
+              </button>
+              <button
+                type="button"
+                onClick={() => pick('mirror', !cfg.mirror)}
+                className={[
+                  'rounded-full px-2.5 py-1.5 text-xs font-bold backdrop-blur-md',
+                  cfg.mirror ? 'bg-white text-ink' : 'bg-black/35 text-white',
+                ].join(' ')}
+              >
+                🪞
+              </button>
+              {phase === 'shooting' && (
                 <button
                   type="button"
                   onClick={cancelShoot}
-                  className="rounded-full px-3 py-1 text-xs font-bold text-ink-soft ring-1 ring-line"
+                  className="rounded-full bg-black/35 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md"
                 >
                   {d.back}
                 </button>
-              </div>
-            )}
+              )}
+            </div>
+          </div>
 
-            {phase === 'shooting' && (
-              <div className="flex items-center justify-center gap-1.5">
-                {Array.from({ length: meta.shots }).map((_, i) => (
-                  <motion.span
-                    key={i}
-                    layout
-                    className={[
-                      'shot-dot',
-                      i < shotIdx ? 'shot-dot-done' : '',
-                      i === shotIdx ? 'shot-dot-active' : '',
-                    ].join(' ')}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* LIVE CAMERA + filter preview */}
-            <div className="relative mx-auto aspect-[3/4] w-full max-w-md overflow-hidden rounded-[1.75rem] bg-ink shadow-lift ring-1 ring-line">
+          {/* camera fills upper viewport — stays visible while tray scrolls */}
+          <div className="relative flex-1 min-h-[48dvh]">
+            <div className="absolute inset-0 bg-ink">
               {error ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-cream">
                   <span className="text-4xl">📷</span>
@@ -479,7 +465,10 @@ export function Booth() {
                     playsInline
                     muted
                     autoPlay
-                    className={['absolute inset-0 h-full w-full object-cover transition-[filter] duration-300', cfg.mirror ? 'mirror' : ''].join(' ')}
+                    className={[
+                      'absolute inset-0 h-full w-full object-cover transition-[filter] duration-300',
+                      cfg.mirror ? 'mirror' : '',
+                    ].join(' ')}
                     style={{ filter: cssFilter(cfg.effect, cfg.skin) }}
                   />
                   <canvas
@@ -489,18 +478,14 @@ export function Booth() {
                       cfg.mirror ? 'mirror' : '',
                     ].join(' ')}
                   />
-
-                  {/* frame color hint border on preview */}
+                  {/* frame tint edge */}
                   <div
-                    className="pointer-events-none absolute inset-2 rounded-[1.35rem] ring-4 transition-colors duration-300"
-                    style={{
-                      boxShadow: `inset 0 0 0 3px ${FRAME_SWATCH[cfg.frame]}88`,
-                      borderRadius: '1.35rem',
-                    }}
+                    className="pointer-events-none absolute inset-0 transition-colors duration-300"
+                    style={{ boxShadow: `inset 0 0 0 6px ${FRAME_SWATCH[cfg.frame]}99` }}
                   />
 
                   {phase === 'live' && (
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/60 to-transparent p-4 pt-14">
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/70 via-ink/20 to-transparent px-4 pb-4 pt-16">
                       <div className="flex flex-wrap gap-1.5">
                         <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
                           {d.layouts[cfg.layout]}
@@ -516,11 +501,37 @@ export function Booth() {
                             {d.effects[cfg.effect]}
                           </span>
                         )}
+                        {cfg.skin !== 'none' && (
+                          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                            {d.skins[cfg.skin]}
+                          </span>
+                        )}
                         {cfg.ar !== 'none' && (
                           <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
                             {AR_EMOJI[cfg.ar]} {d.ars[cfg.ar]}
                           </span>
                         )}
+                      </div>
+                    </div>
+                  )}
+
+                  {phase === 'shooting' && (
+                    <div className="absolute inset-x-0 top-14 z-10 flex flex-col items-center gap-2">
+                      <p className="rounded-full bg-black/40 px-3 py-1 font-display text-sm font-extrabold text-white backdrop-blur">
+                        {tf(d.shotOf, { n: Math.min(shotIdx + 1, meta.shots), total: meta.shots })}
+                      </p>
+                      <div className="flex items-center justify-center gap-1.5">
+                        {Array.from({ length: meta.shots }).map((_, i) => (
+                          <span
+                            key={i}
+                            className={[
+                              'shot-dot',
+                              i < shotIdx ? 'shot-dot-done' : '',
+                              i === shotIdx ? 'shot-dot-active' : '',
+                            ].join(' ')}
+                            style={{ background: i < shotIdx ? '#a8c5b0' : i === shotIdx ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                          />
+                        ))}
                       </div>
                     </div>
                   )}
@@ -545,200 +556,246 @@ export function Booth() {
                 </>
               )}
             </div>
-
-            {phase === 'shooting' && (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {previewThumbs.map((u, i) => (
-                  <motion.img
-                    key={i}
-                    src={u}
-                    alt=""
-                    initial={{ opacity: 0, y: 10, scale: 0.85 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    className="h-[4.5rem] w-14 rounded-xl object-cover shadow-soft ring-1 ring-line"
-                  />
-                ))}
-                {Array.from({ length: meta.shots - previewThumbs.length }).map((_, i) => (
-                  <div
-                    key={`e-${i}`}
-                    className="flex h-[4.5rem] w-14 items-center justify-center rounded-xl bg-white/70 text-xs text-ink-soft ring-1 ring-dashed ring-line"
-                  >
-                    ·
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* LIVE CONTROLS — always with camera */}
-      {phase === 'live' && (
-        <motion.div
-          className="space-y-5"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.05 }}
-        >
-          <Section title={d.layoutLabel} hint={`${meta.shots} shots`}>
-            <div className="grid w-full grid-cols-4 gap-2">
-              {LAYOUTS.map((l) => (
-                <PickCard
-                  key={l.id}
-                  active={cfg.layout === l.id}
-                  onClick={() => pick('layout', l.id as LayoutId)}
-                  className="p-2"
-                >
-                  <div
-                    className="mb-1.5 grid gap-0.5 rounded-md bg-cream p-1"
-                    style={{ gridTemplateColumns: `repeat(${l.cols}, 1fr)` }}
-                  >
-                    {Array.from({ length: l.shots }).map((_, i) => (
-                      <motion.div
-                        key={i}
-                        layout
-                        className="aspect-[3/4] rounded-[2px] bg-rose/55"
-                      />
-                    ))}
-                  </div>
-                  <div className="text-center text-[11px] font-bold text-ink">{d.layouts[l.id]}</div>
-                </PickCard>
-              ))}
-            </div>
-          </Section>
-
-          <Section title={d.frameLabel}>
-            <div className="flex w-full gap-2 overflow-x-auto pb-1">
-              {FRAMES.map((f) => (
-                <PickCard
-                  key={f}
-                  active={cfg.frame === f}
-                  onClick={() => pick('frame', f as FrameId)}
-                  className="min-w-[5rem] p-2"
-                >
-                  <div
-                    className="mb-1.5 flex aspect-[3/4] items-center justify-center rounded-md text-xl"
-                    style={{ background: FRAME_SWATCH[f] }}
-                  >
-                    {FRAME_EMOJI[f]}
-                  </div>
-                  <div className="text-center text-[11px] font-bold">{d.frames[f]}</div>
-                </PickCard>
-              ))}
-            </div>
-          </Section>
-
-          <Section title={d.timerLabel}>
-            <div className="grid w-full grid-cols-3 gap-2">
-              {TIMERS.map((t) => (
-                <PickCard
-                  key={t}
-                  active={cfg.timer === t}
-                  onClick={() => pick('timer', t as TimerSec)}
-                  className="p-3 text-center"
-                >
-                  <div className="font-display text-2xl font-extrabold">{t}</div>
-                  <div className="text-[11px] font-bold text-ink-soft">detik</div>
-                </PickCard>
-              ))}
-            </div>
-          </Section>
-
-          <Section title={d.effectsLabel}>
-            <div className="flex w-full gap-2 overflow-x-auto pb-1">
-              {EFFECTS.map((e) => (
-                <PickCard
-                  key={e}
-                  active={cfg.effect === e}
-                  onClick={() => pick('effect', e as EffectId)}
-                  className="min-w-[4.5rem] p-2"
-                >
-                  <div
-                    className="mb-1.5 aspect-square rounded-lg bg-gradient-to-br from-rose via-peach to-lilac transition-[filter] duration-300"
-                    style={{ filter: EFFECT_PREVIEW[e] }}
-                  />
-                  <div className="text-center text-[11px] font-bold">{d.effects[e]}</div>
-                </PickCard>
-              ))}
-            </div>
-          </Section>
-
-          <Section title={d.skinLabel}>
-            {SKINS.map((s) => (
-              <Chip key={s} active={cfg.skin === s} onClick={() => pick('skin', s as SkinId)}>
-                {d.skins[s]}
-              </Chip>
-            ))}
-          </Section>
-
-          <Section title={d.arLabel}>
-            <div className="grid w-full grid-cols-5 gap-2">
-              {ARS.map((a) => (
-                <PickCard
-                  key={a}
-                  active={cfg.ar === a}
-                  onClick={() => pick('ar', a as ArId)}
-                  className="p-2.5"
-                >
-                  <motion.div
-                    className="text-center text-2xl"
-                    whileTap={{ scale: 1.2, rotate: -8 }}
-                  >
-                    {AR_EMOJI[a]}
-                  </motion.div>
-                  <div className="mt-1 text-center text-[10px] font-bold leading-tight">{d.ars[a]}</div>
-                </PickCard>
-              ))}
-            </div>
-            {cfg.ar !== 'none' && !arReady && !arFail && (
-              <p className="mt-2 text-xs font-medium text-ink-soft pulse-soft">{d.loadingAr}</p>
-            )}
-            {arFail && <p className="mt-2 text-xs font-medium text-rose-deep">{d.arFail}</p>}
-          </Section>
-
-          <button
-            type="button"
-            onClick={() => pick('mirror', !cfg.mirror)}
-            className={[
-              'flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold ring-1 transition',
-              cfg.mirror ? 'bg-white ring-ink/20' : 'bg-white/60 ring-line',
-            ].join(' ')}
-          >
-            <span>{d.mirror}</span>
-            <span className={['relative h-7 w-12 rounded-full transition', cfg.mirror ? 'bg-ink' : 'bg-line'].join(' ')}>
-              <span
-                className={[
-                  'absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition',
-                  cfg.mirror ? 'left-5' : 'left-0.5',
-                ].join(' ')}
-              />
-            </span>
-          </button>
-
-          {/* sticky shutter */}
-          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line/70 bg-cream/92 px-4 py-3 backdrop-blur-xl safe-bottom">
-            <div className="mx-auto flex max-w-3xl items-center gap-3">
-              <div className="hidden min-w-0 flex-1 text-xs font-semibold text-ink-soft sm:block">
-                {d.layouts[cfg.layout]} · {d.frames[cfg.frame]} · ⏱{cfg.timer}s · {meta.shots}×
-              </div>
-              <motion.button
-                type="button"
-                onClick={pressShutter}
-                disabled={!!error || !ready}
-                whileTap={{ scale: 0.94 }}
-                animate={shutterPulse ? { scale: [1, 0.92, 1.04, 1] } : {}}
-                className="btn-primary relative mx-auto flex h-[4.25rem] w-[4.25rem] shrink-0 items-center justify-center rounded-full p-0 text-2xl shadow-lift disabled:opacity-50 sm:mx-0"
-                aria-label={d.shutter}
-              >
-                <span className="absolute inset-1 rounded-full border-2 border-cream/40" />
-                📸
-              </motion.button>
-              <div className="flex-1 text-right text-sm font-bold text-ink sm:flex-none">
-                {d.shutter}
-              </div>
-            </div>
           </div>
-        </motion.div>
+
+          {phase === 'shooting' && previewThumbs.length > 0 && (
+            <div className="h-scroll bg-ink px-3 py-2">
+              {previewThumbs.map((u, i) => (
+                <motion.img
+                  key={i}
+                  src={u}
+                  alt=""
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="h-14 w-11 shrink-0 rounded-lg object-cover ring-1 ring-white/20"
+                />
+              ))}
+            </div>
+          )}
+
+          {/* bottom tray — horizontal pickers; preview stays above */}
+          {phase === 'live' && (
+            <div className="booth-tray relative z-20 shrink-0 safe-bottom">
+              {/* category tabs — swipe horizontal */}
+              <div className="h-scroll border-b border-line/70 px-3 py-2.5">
+                {tabs.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setTrayTab(t.id)
+                      sfx(playPop)
+                    }}
+                    className={['tab-pill', trayTab === t.id ? 'tab-pill-on' : 'tab-pill-off'].join(' ')}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* IG-style horizontal option rail */}
+              <div className="px-2 py-3">
+                <AnimatePresence mode="wait">
+                  {trayTab === 'filter' && (
+                    <motion.div
+                      key="filter"
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ duration: 0.18 }}
+                      className="space-y-3"
+                    >
+                      <div className="h-scroll px-1">
+                        {EFFECTS.map((e) => (
+                          <FilterBubble
+                            key={e}
+                            active={cfg.effect === e}
+                            onClick={() => pick('effect', e as EffectId)}
+                            label={d.effects[e]}
+                            previewStyle={{
+                              background:
+                                e === 'none'
+                                  ? 'linear-gradient(145deg,#f5f0ea,#e8e0d8)'
+                                  : 'linear-gradient(145deg,#f7e9ee,#efe8f8 50%,#e8f2eb)',
+                              filter: EFFECT_PREVIEW[e],
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <p className="px-2 text-[10px] font-bold uppercase tracking-wider text-ink-soft">
+                        {d.skinLabel}
+                      </p>
+                      <div className="h-scroll px-1">
+                        {SKINS.map((s) => (
+                          <FilterBubble
+                            key={s}
+                            active={cfg.skin === s}
+                            onClick={() => pick('skin', s as SkinId)}
+                            label={d.skins[s]}
+                            previewStyle={{
+                              background:
+                                s === 'peach'
+                                  ? 'linear-gradient(145deg,#f5c9a8,#ffe8d6)'
+                                  : s === 'porcelain'
+                                    ? 'linear-gradient(145deg,#e8eef5,#f8fafc)'
+                                    : s === 'glow'
+                                      ? 'linear-gradient(145deg,#fff6e8,#ffe0c8)'
+                                      : s === 'even'
+                                        ? 'linear-gradient(145deg,#f0e6dc,#e8d8cc)'
+                                        : 'linear-gradient(145deg,#f5f0ea,#e8e0d8)',
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {trayTab === 'frame' && (
+                    <motion.div
+                      key="frame"
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      className="h-scroll px-1"
+                    >
+                      {FRAMES.map((f) => (
+                        <FilterBubble
+                          key={f}
+                          active={cfg.frame === f}
+                          onClick={() => pick('frame', f as FrameId)}
+                          label={d.frames[f]}
+                          emoji={FRAME_EMOJI[f]}
+                          previewStyle={{ background: FRAME_SWATCH[f] }}
+                        />
+                      ))}
+                    </motion.div>
+                  )}
+
+                  {trayTab === 'layout' && (
+                    <motion.div
+                      key="layout"
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      className="h-scroll px-1"
+                    >
+                      {LAYOUTS.map((l) => (
+                        <button
+                          key={l.id}
+                          type="button"
+                          onClick={() => pick('layout', l.id as LayoutId)}
+                          className={[
+                            'shrink-0 rounded-2xl p-2.5 ring-2 transition',
+                            cfg.layout === l.id ? 'bg-ink ring-ink' : 'bg-cream ring-transparent',
+                          ].join(' ')}
+                        >
+                          <div
+                            className="mb-1.5 grid w-14 gap-0.5 rounded-md bg-white p-1"
+                            style={{ gridTemplateColumns: `repeat(${l.cols}, 1fr)` }}
+                          >
+                            {Array.from({ length: l.shots }).map((_, i) => (
+                              <div
+                                key={i}
+                                className="aspect-[3/4] rounded-[2px]"
+                                style={{ background: cfg.layout === l.id ? '#e8b4b8' : '#e8b4b888' }}
+                              />
+                            ))}
+                          </div>
+                          <div
+                            className={[
+                              'text-center text-[11px] font-bold',
+                              cfg.layout === l.id ? 'text-cream' : 'text-ink',
+                            ].join(' ')}
+                          >
+                            {d.layouts[l.id]}
+                          </div>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+
+                  {trayTab === 'ar' && (
+                    <motion.div
+                      key="ar"
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      className="space-y-2"
+                    >
+                      <div className="h-scroll px-1">
+                        {ARS.map((a) => (
+                          <FilterBubble
+                            key={a}
+                            active={cfg.ar === a}
+                            onClick={() => pick('ar', a as ArId)}
+                            label={d.ars[a]}
+                            emoji={AR_EMOJI[a]}
+                            previewStyle={{
+                              background: 'linear-gradient(145deg,#fff,#f7e9ee)',
+                            }}
+                          />
+                        ))}
+                      </div>
+                      {cfg.ar !== 'none' && !arReady && !arFail && (
+                        <p className="px-2 text-xs font-medium text-ink-soft pulse-soft">{d.loadingAr}</p>
+                      )}
+                      {arFail && <p className="px-2 text-xs font-medium text-rose-deep">{d.arFail}</p>}
+                    </motion.div>
+                  )}
+
+                  {trayTab === 'timer' && (
+                    <motion.div
+                      key="timer"
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      className="h-scroll px-1"
+                    >
+                      {TIMERS.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => pick('timer', t as TimerSec)}
+                          className={[
+                            'flex h-[4.5rem] w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-full transition',
+                            cfg.timer === t
+                              ? 'bg-ink text-cream scale-105'
+                              : 'bg-cream text-ink ring-1 ring-line',
+                          ].join(' ')}
+                        >
+                          <span className="font-display text-2xl font-extrabold">{t}</span>
+                          <span className="text-[10px] font-bold opacity-70">sec</span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* shutter row */}
+              <div className="flex items-center justify-between gap-3 border-t border-line/60 px-4 py-3">
+                <div className="min-w-0 flex-1 text-[11px] font-semibold leading-tight text-ink-soft">
+                  {d.layouts[cfg.layout]} · {FRAME_EMOJI[cfg.frame]} · ⏱{cfg.timer}s
+                  <br />
+                  <span className="opacity-70">{meta.shots}× shots</span>
+                </div>
+                <motion.button
+                  type="button"
+                  onClick={pressShutter}
+                  disabled={!!error || !ready}
+                  whileTap={{ scale: 0.92 }}
+                  animate={shutterPulse ? { scale: [1, 0.9, 1.06, 1] } : {}}
+                  className="btn-primary relative flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-full p-0 text-2xl shadow-lift disabled:opacity-50"
+                  aria-label={d.shutter}
+                >
+                  <span className="absolute inset-1.5 rounded-full border-2 border-cream/35" />
+                  📸
+                </motion.button>
+                <div className="flex-1 text-right text-xs font-bold text-ink">{d.shutter}</div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {phase === 'printing' && resultUrl && <PrintAnim src={resultUrl} onDone={finishPrint} />}
