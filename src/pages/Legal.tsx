@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 export function Terms() {
   const { d } = useLang()
   return (
-    <article className="prose-legal mx-auto max-w-2xl space-y-4 pb-12">
+    <article className="legal-paper prose-legal mx-auto max-w-2xl space-y-4 p-5 sm:p-8">
       <Link to="/" className="text-sm font-semibold text-rose-deep">
         ← {d.home}
       </Link>
@@ -17,7 +17,7 @@ export function Terms() {
 export function Privacy() {
   const { d } = useLang()
   return (
-    <article className="prose-legal mx-auto max-w-2xl space-y-4 pb-12">
+    <article className="legal-paper prose-legal mx-auto max-w-2xl space-y-4 p-5 sm:p-8">
       <Link to="/" className="text-sm font-semibold text-rose-deep">
         ← {d.home}
       </Link>

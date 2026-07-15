@@ -396,28 +396,28 @@ export function Booth() {
 
   const showCam = phase === 'live' || phase === 'shooting'
 
-  const tabs: { id: typeof trayTab; label: string }[] = [
-    { id: 'filter', label: d.effectsLabel },
-    { id: 'frame', label: d.frameLabel },
-    { id: 'layout', label: d.layoutLabel },
-    { id: 'ar', label: d.arLabel },
-    { id: 'timer', label: d.timerLabel },
+  const tabs: { id: typeof trayTab; label: string; icon: string }[] = [
+    { id: 'filter', label: d.effectsLabel, icon: '✦' },
+    { id: 'frame', label: d.frameLabel, icon: '▣' },
+    { id: 'layout', label: d.layoutLabel, icon: '⊞' },
+    { id: 'ar', label: d.arLabel, icon: '♡' },
+    { id: 'timer', label: d.timerLabel, icon: '◷' },
   ]
 
   return (
     <div
       className={[
-        phase === 'live' || phase === 'shooting' ? 'min-h-dvh bg-ink' : 'space-y-4 px-4 pb-16 pt-3',
+        phase === 'live' || phase === 'shooting' ? 'booth-live min-h-dvh bg-ink' : 'result-page space-y-4 px-4 pb-16 pt-3',
       ].join(' ')}
     >
       {/* ===== LIVE / SHOOTING: sticky preview + horizontal tray ===== */}
       {showCam && (
         <div className="flex min-h-dvh flex-col">
           {/* top bar over camera */}
-          <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="booth-toolbar absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <Link
               to="/"
-              className="inline-flex items-center gap-1 rounded-full bg-black/35 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md"
+              className="camera-control inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-bold text-white backdrop-blur-md"
             >
               ← {d.back}
             </Link>
@@ -428,7 +428,7 @@ export function Booth() {
                   unlockAudio()
                   setSound((s) => !s)
                 }}
-                className="rounded-full bg-black/35 px-2.5 py-1.5 text-xs font-bold text-white backdrop-blur-md"
+                className="camera-control rounded-full px-3 py-2 text-xs font-bold text-white backdrop-blur-md"
               >
                 {sound ? '🔊' : '🔇'}
               </button>
@@ -436,8 +436,8 @@ export function Booth() {
                 type="button"
                 onClick={() => pick('mirror', !cfg.mirror)}
                 className={[
-                  'rounded-full px-2.5 py-1.5 text-xs font-bold backdrop-blur-md',
-                  cfg.mirror ? 'bg-white text-ink' : 'bg-black/35 text-white',
+                  'camera-control rounded-full px-3 py-2 text-xs font-bold backdrop-blur-md',
+                  cfg.mirror ? 'camera-control-on text-ink' : 'text-white',
                 ].join(' ')}
                 aria-label={d.mirror}
                 title={d.mirror}
@@ -448,8 +448,8 @@ export function Booth() {
                 type="button"
                 onClick={() => pick('screenFlash', !cfg.screenFlash)}
                 className={[
-                  'rounded-full px-2.5 py-1.5 text-xs font-bold backdrop-blur-md',
-                  cfg.screenFlash ? 'bg-white text-ink' : 'bg-black/35 text-white',
+                  'camera-control rounded-full px-3 py-2 text-xs font-bold backdrop-blur-md',
+                  cfg.screenFlash ? 'camera-control-on text-ink' : 'text-white',
                 ].join(' ')}
                 aria-label={cfg.screenFlash ? d.flashOn : d.flashOff}
                 title={cfg.screenFlash ? d.flashOn : d.flashOff}
@@ -460,7 +460,7 @@ export function Booth() {
                 <button
                   type="button"
                   onClick={cancelShoot}
-                  className="rounded-full bg-black/35 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md"
+                  className="camera-control rounded-full px-3 py-2 text-xs font-bold text-white backdrop-blur-md"
                 >
                   {d.back}
                 </button>
@@ -469,8 +469,8 @@ export function Booth() {
           </div>
 
           {/* camera fills upper viewport — stays visible while tray scrolls */}
-          <div className="relative flex-1 min-h-[48dvh]">
-            <div className="absolute inset-0 bg-ink">
+          <div className="booth-camera-stage relative flex-1 min-h-[48dvh]">
+            <div className="booth-camera absolute inset-0 bg-ink">
               {error ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-cream">
                   <span className="text-4xl">📷</span>
@@ -530,31 +530,34 @@ export function Booth() {
                     className="pointer-events-none absolute inset-0 transition-colors duration-300"
                     style={{ boxShadow: `inset 0 0 0 6px ${FRAME_SWATCH[cfg.frame]}99` }}
                   />
+                  <div className="viewfinder pointer-events-none absolute inset-5" aria-hidden>
+                    <i /><i /><i /><i />
+                  </div>
 
                   {phase === 'live' && (
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/70 via-ink/20 to-transparent px-4 pb-4 pt-16">
                       <div className="flex flex-wrap gap-1.5">
-                        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                        <span className="live-chip rounded-full px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur">
                           {d.layouts[cfg.layout]}
                         </span>
-                        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                        <span className="live-chip rounded-full px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur">
                           {FRAME_EMOJI[cfg.frame]} {d.frames[cfg.frame]}
                         </span>
-                        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                        <span className="live-chip rounded-full px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur">
                           ⏱ {cfg.timer}s
                         </span>
                         {cfg.effect !== 'none' && (
-                          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                          <span className="live-chip rounded-full px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur">
                             {d.effects[cfg.effect]}
                           </span>
                         )}
                         {cfg.skin !== 'none' && (
-                          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                          <span className="live-chip rounded-full px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur">
                             {d.skins[cfg.skin]}
                           </span>
                         )}
                         {cfg.ar !== 'none' && (
-                          <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                          <span className="live-chip rounded-full px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur">
                             {AR_EMOJI[cfg.ar]} {d.ars[cfg.ar]}
                           </span>
                         )}
@@ -633,7 +636,7 @@ export function Booth() {
 
           {/* bottom tray — horizontal pickers; preview stays above */}
           {phase === 'live' && (
-            <div className="booth-tray relative z-20 shrink-0 safe-bottom">
+            <div className="booth-tray booth-control-deck relative z-20 shrink-0 safe-bottom">
               {/* category tabs — swipe horizontal */}
               <div className="h-scroll border-b border-line/70 px-3 py-2.5">
                 {tabs.map((t) => (
@@ -646,7 +649,7 @@ export function Booth() {
                     }}
                     className={['tab-pill', trayTab === t.id ? 'tab-pill-on' : 'tab-pill-off'].join(' ')}
                   >
-                    {t.label}
+                    <span aria-hidden>{t.icon}</span> {t.label}
                   </button>
                 ))}
               </div>
@@ -831,7 +834,7 @@ export function Booth() {
               </div>
 
               {/* shutter row */}
-              <div className="flex items-center justify-between gap-3 border-t border-line/60 px-4 py-3">
+              <div className="shutter-deck flex items-center justify-between gap-3 border-t border-line/60 px-4 py-3">
                 <div className="min-w-0 flex-1 text-[11px] font-semibold leading-tight text-ink-soft">
                   {d.layouts[cfg.layout]} · {FRAME_EMOJI[cfg.frame]} · ⏱{cfg.timer}s
                   <br />
@@ -843,7 +846,7 @@ export function Booth() {
                   disabled={!!error || !ready}
                   whileTap={{ scale: 0.92 }}
                   animate={shutterPulse ? { scale: [1, 0.9, 1.06, 1] } : {}}
-                  className="btn-primary relative flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-full p-0 text-2xl shadow-lift disabled:opacity-50"
+                  className="shutter-button relative flex h-[4.8rem] w-[4.8rem] shrink-0 items-center justify-center rounded-full p-0 text-2xl disabled:opacity-50"
                   aria-label={d.shutter}
                 >
                   <span className="absolute inset-1.5 rounded-full border-2 border-cream/35" />
@@ -883,7 +886,7 @@ export function Booth() {
           </div>
 
           <div
-            className="relative mx-auto max-w-sm touch-none"
+            className="result-photo relative mx-auto max-w-sm touch-none"
             onPointerMove={phase === 'edit' ? onPointerMove : undefined}
             onPointerUp={phase === 'edit' ? onPointerUp : undefined}
             onPointerLeave={phase === 'edit' ? onPointerUp : undefined}
@@ -960,7 +963,7 @@ export function Booth() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="result-actions grid grid-cols-2 gap-2.5">
             {phase === 'result' ? (
               <button type="button" onClick={() => setPhase('edit')} className="btn-secondary py-3.5">
                 ✏️ {d.edit}

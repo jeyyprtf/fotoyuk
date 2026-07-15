@@ -8,36 +8,35 @@ export function Shell() {
   const hideFooter = isBooth
 
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="site-shell min-h-dvh flex flex-col">
       {!isBooth && (
-        <header className="sticky top-0 z-40 border-b border-line/60 bg-cream/75 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
+        <header className="sticky top-0 z-40 px-3 pt-3 sm:px-5 sm:pt-4">
+          <div className="site-nav mx-auto flex max-w-5xl items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
             <Link
               to="/"
-              className="group flex items-center gap-2 font-display text-xl font-extrabold tracking-tight text-ink"
+              className="group flex items-center gap-2.5 font-display text-xl font-extrabold tracking-tight text-ink"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-sm shadow-sm ring-1 ring-line transition group-hover:scale-105">
+              <span className="brand-camera flex h-9 w-9 items-center justify-center text-sm transition group-hover:-rotate-6 group-hover:scale-105">
                 📸
               </span>
-              {d.brand}
-              <span className="text-rose-deep">·</span>
+              <span>{d.brand}<span className="text-rose-deep">!</span></span>
             </Link>
             <nav className="flex items-center gap-1.5">
               <Link
                 to="/gallery"
                 className={[
-                  'rounded-full px-3.5 py-1.5 text-sm font-semibold transition',
+                  'nav-pill rounded-full px-3.5 py-2 text-sm font-bold transition',
                   pathname.startsWith('/gallery')
-                    ? 'bg-ink text-cream'
-                    : 'text-ink-soft hover:bg-white/80',
+                    ? 'nav-pill-on text-ink'
+                    : 'text-ink-soft hover:bg-white',
                 ].join(' ')}
               >
-                {d.gallery}
+                <span className="hidden sm:inline">🎞️ </span>{d.gallery}
               </Link>
               <button
                 type="button"
                 onClick={() => setLang(lang === 'id' ? 'en' : 'id')}
-                className="rounded-full border border-line bg-white/90 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-ink-soft shadow-sm transition hover:border-rose/50"
+                className="lang-switch rounded-full px-3 py-2 text-xs font-extrabold uppercase tracking-wide text-ink-soft transition"
                 aria-label="Toggle language"
               >
                 {lang === 'id' ? 'EN' : 'ID'}
@@ -48,15 +47,15 @@ export function Shell() {
       )}
       <main
         className={[
-          'mx-auto w-full max-w-3xl flex-1',
-          isBooth ? 'px-0 py-0' : 'px-4 py-5 sm:py-7',
+          'mx-auto w-full flex-1',
+          isBooth ? 'max-w-3xl px-0 py-0' : 'max-w-5xl px-4 py-6 sm:px-6 sm:py-10',
         ].join(' ')}
       >
         <Outlet />
       </main>
       {!hideFooter && (
-        <footer className="border-t border-line/60 px-4 py-5 text-center text-xs text-ink-soft safe-bottom">
-          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-3">
+        <footer className="px-4 pb-6 pt-3 text-center text-xs text-ink-soft safe-bottom">
+          <div className="footer-ticket mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-3 px-4 py-4">
             <Link to="/terms" className="font-medium hover:text-ink">
               {d.terms}
             </Link>

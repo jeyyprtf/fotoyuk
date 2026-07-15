@@ -4,101 +4,124 @@ import { useLang } from '../hooks/useLang'
 import { track } from '../lib/telemetry'
 import { useEffect } from 'react'
 
-const features = [
-  { e: '🎞️', k: 'layout' },
-  { e: '🖼️', k: 'frame' },
-  { e: '✨', k: 'fx' },
-  { e: '🐶', k: 'ar' },
-] as const
-
 export function Home() {
   const { d, lang } = useLang()
   useEffect(() => {
     track('session_start')
   }, [])
 
-  const blurb =
-    lang === 'id'
-      ? ['Pilih layout & frame', 'Filter + AR lucu', 'Print anim & edit', 'Simpan / share lokal']
-      : ['Pick layout & frame', 'Filters + cute AR', 'Print anim & edit', 'Save / share locally']
+  const steps = lang === 'id'
+    ? [
+        ['01', 'Pilih gayamu', 'Atur layout, frame, filter, dan AR sebelum mulai.'],
+        ['02', 'Pose sesukamu', 'Timer memandu setiap jepretan tanpa bikin buru-buru.'],
+        ['03', 'Bawa pulang', 'Hias, download, share, atau simpan lokal di perangkat.'],
+      ]
+    : [
+        ['01', 'Pick your vibe', 'Set your layout, frame, filters, and AR before you start.'],
+        ['02', 'Strike a pose', 'A friendly timer guides every shot without the rush.'],
+        ['03', 'Take it home', 'Decorate, download, share, or keep it locally.'],
+      ]
 
   return (
-    <div className="flex flex-col items-center gap-9 pb-10 pt-2 text-center">
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45 }}
-        className="space-y-3"
-      >
-        <div className="mx-auto inline-flex items-center gap-2 rounded-full bg-white/90 px-3.5 py-1.5 text-xs font-bold text-sage-deep shadow-soft ring-1 ring-line">
-          <span className="h-1.5 w-1.5 rounded-full bg-sage-deep pulse-soft" />
-          {d.privacyBadge}
-        </div>
-        <h1 className="font-display text-5xl font-extrabold tracking-tight text-ink sm:text-6xl">
-          {d.brand}
-          <span className="text-rose-deep">.</span>
-        </h1>
-        <p className="mx-auto max-w-md text-base leading-relaxed text-ink-soft sm:text-lg">{d.tagline}</p>
-      </motion.div>
+    <div className="home-page pb-12">
+      <section className="hero-grid items-center gap-8 sm:gap-12">
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.48 }}
+          className="relative z-10 text-center lg:text-left"
+        >
+          <div className="privacy-stamp mx-auto mb-5 inline-flex items-center gap-2 px-3.5 py-2 text-xs font-extrabold text-sage-deep lg:mx-0">
+            <span className="h-2 w-2 rounded-full bg-sage-deep pulse-soft" />
+            {d.privacyBadge}
+          </div>
+          <p className="mb-2 font-display text-sm font-extrabold uppercase tracking-[0.2em] text-rose-deep">
+            your pocket photo studio
+          </p>
+          <h1 className="hero-title font-display font-extrabold text-ink">
+            Keep the<br />
+            <span className="hero-script">silly little</span><br />
+            moments.
+          </h1>
+          <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-ink-soft sm:text-lg lg:mx-0">
+            {d.tagline} {lang === 'id' ? 'Pilih vibe, pose, lalu bawa pulang fotonya.' : 'Pick a vibe, pose, and take the memory home.'}
+          </p>
+          <div className="mx-auto mt-7 flex max-w-sm flex-col gap-3 sm:flex-row lg:mx-0 lg:max-w-none">
+            <Link to="/booth" className="btn-primary hero-cta px-6 py-4 text-lg">
+              <span className="text-xl">📸</span> {d.start} <span aria-hidden>→</span>
+            </Link>
+            <Link to="/gallery" className="btn-secondary px-5 py-4">
+              🎞️ {d.gallery}
+            </Link>
+          </div>
+          <p className="mt-4 text-xs font-semibold text-ink-soft/75">
+            🔒 {lang === 'id' ? 'Tanpa akun · tanpa upload · langsung jadi' : 'No account · no uploads · ready in seconds'}
+          </p>
+        </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.06, duration: 0.45 }}
-        className="relative w-full max-w-sm"
-      >
-        <div className="absolute -inset-4 rounded-[2.2rem] bg-gradient-to-br from-rose/35 via-lilac/25 to-sage/35 blur-2xl" />
-        <div className="relative card overflow-hidden p-4">
-          <div className="grid grid-cols-2 gap-2.5">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94, rotate: 2 }}
+          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+          transition={{ delay: 0.08, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          className="hero-collage relative mx-auto w-full max-w-[430px]"
+        >
+          <span className="doodle doodle-star" aria-hidden>✦</span>
+          <span className="doodle doodle-heart" aria-hidden>♡</span>
+          <div className="photo-strip photo-strip-back" aria-hidden>
+            <div /><div /><div />
+          </div>
+          <div className="photo-strip relative z-10">
+            <div className="tape tape-top">besties only</div>
             {[
-              { e: '🐶', bg: 'linear-gradient(145deg,#f7e9ee,#fff)' },
-              { e: '💕', bg: 'linear-gradient(145deg,#efe8f8,#fff)' },
-              { e: '✨', bg: 'linear-gradient(145deg,#e8f2eb,#fff)' },
-              { e: '🐱', bg: 'linear-gradient(145deg,#f5ebe4,#fff)' },
-            ].map((cell, i) => (
+              ['🐶', '✦', 'bg-rose/25'],
+              ['😙', '♡', 'bg-lilac/25'],
+              ['🐱', '✿', 'bg-sage/25'],
+            ].map(([face, mark, bg], i) => (
               <motion.div
                 key={i}
-                className="floaty flex aspect-[4/5] items-center justify-center rounded-2xl text-4xl"
-                style={{ background: cell.bg, animationDelay: `${i * 0.25}s` }}
-                whileHover={{ scale: 1.03 }}
+                className={`photo-cell ${bg}`}
+                animate={{ y: [0, -3, 0] }}
+                transition={{ duration: 3 + i * 0.4, repeat: Infinity, ease: 'easeInOut' }}
               >
-                {cell.e}
+                <span className="photo-face">{face}</span>
+                <span className="photo-mark">{mark}</span>
               </motion.div>
             ))}
+            <div className="strip-caption">
+              <span>{d.brand}!</span>
+              <span>15.07.26 ♡</span>
+            </div>
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            {features.map((f, i) => (
-              <span
-                key={f.k}
-                className="inline-flex items-center gap-1 rounded-full bg-cream px-2.5 py-1 text-[11px] font-bold text-ink-soft ring-1 ring-line"
-              >
-                <span>{f.e}</span>
-                {blurb[i]}
-              </span>
-            ))}
-          </div>
+          <div className="hero-sticker hero-sticker-one">✨ cute mode</div>
+          <div className="hero-sticker hero-sticker-two">100% local!</div>
+        </motion.div>
+      </section>
+
+      <section className="mt-16 sm:mt-24">
+        <div className="mb-7 text-center">
+          <span className="section-kicker">easy peasy</span>
+          <h2 className="mt-2 font-display text-3xl font-extrabold sm:text-4xl">
+            {lang === 'id' ? 'Tiga langkah, satu kenangan ♡' : 'Three steps, one little memory ♡'}
+          </h2>
         </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.12 }}
-        className="flex w-full max-w-sm flex-col gap-3"
-      >
-        <Link to="/booth" className="btn-primary py-4 text-lg">
-          <span>📸</span> {d.start}
-        </Link>
-        <Link to="/gallery" className="btn-secondary py-3.5">
-          {d.gallery}
-        </Link>
-      </motion.div>
-
-      <p className="max-w-xs text-xs leading-relaxed text-ink-soft/80">
-        {lang === 'id'
-          ? 'Kamera + filter + export 100% di browser kamu. Zero upload drama.'
-          : 'Camera + filters + export stay 100% in your browser. Zero upload drama.'}
-      </p>
+        <div className="grid gap-4 md:grid-cols-3">
+          {steps.map(([number, title, copy], i) => (
+            <motion.article
+              key={number}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ delay: i * 0.08 }}
+              className={`step-card step-card-${i + 1}`}
+            >
+              <span className="step-number">{number}</span>
+              <span className="mb-4 block text-3xl">{['🎨', '📸', '🎞️'][i]}</span>
+              <h3 className="font-display text-xl font-extrabold">{title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-soft">{copy}</p>
+            </motion.article>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

@@ -4,15 +4,15 @@ import { useLang } from '../hooks/useLang'
 export function PrintAnim({ src, onDone }: { src: string; onDone: () => void }) {
   const { d } = useLang()
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-end bg-ink/50 backdrop-blur-md">
+    <div className="print-scene fixed inset-0 z-50 flex flex-col items-center justify-end backdrop-blur-md">
       <motion.p
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-4 font-display text-lg font-extrabold text-white drop-shadow"
+        className="print-label mb-4 px-4 py-2 font-display text-sm font-extrabold text-white"
       >
         {d.printing}
       </motion.p>
-      <div className="relative mb-6 h-[72dvh] w-[min(92vw,360px)] overflow-hidden rounded-t-2xl bg-gradient-to-b from-[#45454d] to-[#18181b] px-4 pt-5 shadow-2xl ring-1 ring-white/10">
+      <div className="print-machine relative mb-6 h-[72dvh] w-[min(92vw,360px)] overflow-hidden rounded-t-[2rem] px-4 pt-5 shadow-2xl">
         {/* printer top */}
         <div className="mb-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
           <span>FotoYuk Print</span>

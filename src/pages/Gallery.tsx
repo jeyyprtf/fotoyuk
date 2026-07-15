@@ -52,11 +52,12 @@ export function Gallery() {
   }
 
   return (
-    <div className="space-y-5 pb-12">
-      <div className="flex items-end justify-between gap-3">
+    <div className="gallery-page space-y-7 pb-12">
+      <div className="gallery-heading flex items-end justify-between gap-3 px-5 py-5 sm:px-7">
         <div>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight">{d.gallery}</h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <span className="section-kicker">your keepsakes</span>
+          <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">🎞️ {d.gallery}</h1>
+          <p className="mt-1.5 text-sm text-ink-soft">
             {d.privacyBadge}
             {items.length > 0 && (
               <span className="ml-2 rounded-full bg-white px-2 py-0.5 text-[11px] font-bold ring-1 ring-line">
@@ -69,7 +70,7 @@ export function Gallery() {
           <button
             type="button"
             onClick={() => void clear()}
-            className="rounded-full px-3 py-1.5 text-xs font-bold text-rose-deep ring-1 ring-rose/35 transition hover:bg-rose/10"
+            className="gallery-clear rounded-full px-3 py-2 text-xs font-bold text-rose-deep transition"
           >
             {d.clearAll}
           </button>
@@ -83,15 +84,18 @@ export function Gallery() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="card flex flex-col items-center gap-4 p-10 text-center">
-          <span className="text-5xl">🖼️</span>
-          <p className="max-w-xs text-ink-soft">{d.emptyGallery}</p>
+        <div className="empty-album flex flex-col items-center gap-4 p-10 text-center sm:p-14">
+          <div className="empty-photo"><span>♡</span><span>✦</span><span>☻</span></div>
+          <div>
+            <h2 className="font-display text-xl font-extrabold">{lang === 'id' ? 'Albummu masih kosong' : 'Your album is still empty'}</h2>
+            <p className="mt-1 max-w-xs text-sm text-ink-soft">{d.emptyGallery}</p>
+          </div>
           <Link to="/booth" className="btn-primary px-6 py-3">
             📸 {d.start}
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="gallery-grid grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6">
           {items.map((it, i) => (
             <motion.button
               key={it.id}
@@ -100,13 +104,17 @@ export function Gallery() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(i * 0.04, 0.24) }}
               onClick={() => setActive(it)}
-              className="group overflow-hidden rounded-2xl bg-white shadow-soft ring-1 ring-line transition hover:-translate-y-0.5 hover:shadow-lift"
+              className="gallery-polaroid group bg-white text-left transition hover:z-10 hover:-translate-y-1 hover:rotate-0 hover:shadow-lift"
             >
               <img
                 src={urls[it.id]}
                 alt=""
-                className="aspect-[3/4] w-full object-cover transition group-hover:scale-[1.02]"
+                className="aspect-[4/5] w-full object-cover transition group-hover:scale-[1.015]"
               />
+              <span className="flex items-center justify-between gap-2 px-1 pb-0.5 pt-2 font-display text-[10px] font-extrabold text-ink-soft sm:text-xs">
+                <span>{new Date(it.createdAt).toLocaleDateString()}</span>
+                <span>{it.layout} ♡</span>
+              </span>
             </motion.button>
           ))}
         </div>
@@ -115,20 +123,20 @@ export function Gallery() {
       <AnimatePresence>
         {active && urls[active.id] && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-4 backdrop-blur-md sm:items-center"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-3 backdrop-blur-md sm:items-center sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setActive(null)}
           >
             <motion.div
-              className="max-h-[90dvh] w-full max-w-md overflow-auto rounded-3xl bg-cream p-4 shadow-2xl ring-1 ring-line"
+              className="gallery-modal max-h-[92dvh] w-full max-w-md overflow-auto p-4 shadow-2xl"
               initial={{ y: 40, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 24, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <img src={urls[active.id]} alt="" className="w-full rounded-2xl shadow-soft" />
+              <div className="gallery-modal-photo"><img src={urls[active.id]} alt="" className="w-full" /></div>
               <p className="mt-2 text-center text-[11px] font-semibold text-ink-soft">
                 {new Date(active.createdAt).toLocaleString()} · {active.layout} · {active.frame}
               </p>

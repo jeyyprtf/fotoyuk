@@ -8,8 +8,8 @@ export function Toast({ message, onDone }: { message: string; onDone: () => void
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4 safe-bottom">
-      <div className="toast-in rounded-2xl bg-ink px-4 py-3 text-sm font-semibold text-cream shadow-lift">
-        {message}
+      <div className="toast-in toast-cute rounded-full px-4 py-3 text-sm font-bold text-cream shadow-lift">
+        <span className="mr-1.5">✦</span>{message}
       </div>
     </div>
   )
