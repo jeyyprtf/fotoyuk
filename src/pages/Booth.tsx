@@ -140,15 +140,16 @@ export function Booth() {
     )
   }, [cfg, videoRef])
 
+  // ponytail: snappy booth — first shot 3·2·1, next shots 2·1 (no dead air)
   const runCountdown = useCallback(
     async (from = 3) => {
       for (let n = from; n >= 1; n--) {
         setCountdown(n)
-        await sleep(720)
+        await sleep(450)
       }
       setCountdown(0)
       setFlash(true)
-      await sleep(140)
+      await sleep(90)
       setFlash(false)
       setCountdown(null)
       const frame = takeShot()
@@ -179,13 +180,13 @@ export function Booth() {
     setPreviewThumbs([])
     setShotIdx(0)
     ;(async () => {
-      await sleep(500)
+      await sleep(200)
       if (shootGen.current !== gen) return
       for (let i = 0; i < meta.shots; i++) {
         if (shootGen.current !== gen) return
-        await runCountdown(3)
+        await runCountdown(i === 0 ? 3 : 2)
         if (shootGen.current !== gen) return
-        if (i < meta.shots - 1) await sleep(550)
+        if (i < meta.shots - 1) await sleep(220)
       }
       if (shootGen.current !== gen) return
       try {

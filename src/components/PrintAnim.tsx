@@ -27,7 +27,7 @@ export function PrintAnim({ src, onDone }: { src: string; onDone: () => void }) 
             className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-rose via-lilac to-sage"
             initial={{ width: '0%' }}
             animate={{ width: '100%' }}
-            transition={{ duration: 2.1, ease: 'easeInOut' }}
+            transition={{ duration: 1.1, ease: 'easeInOut' }}
           />
         </div>
         <div className="mt-2 h-1 rounded-full bg-black/30" />
@@ -36,7 +36,7 @@ export function PrintAnim({ src, onDone }: { src: string; onDone: () => void }) 
           className="absolute left-1/2 top-16 w-[88%] -translate-x-1/2 origin-top"
           initial={{ y: -80, opacity: 0.3, rotate: -1 }}
           animate={{ y: '38%', opacity: 1, rotate: 0 }}
-          transition={{ duration: 2.3, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
           onAnimationComplete={onDone}
         >
           <div className="relative rounded-md bg-white p-2.5 shadow-2xl film-grain">

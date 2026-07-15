@@ -70,10 +70,11 @@ export function postProcess(
     ctx.fillRect(0, 0, w, h)
   }
   if (effect === 'grain') {
+    // ponytail: sparse noise — full-pixel scan was laggy on multi-shot compose
     const img = ctx.getImageData(0, 0, w, h)
     const d = img.data
-    for (let i = 0; i < d.length; i += 16) {
-      const n = (Math.random() - 0.5) * 28
+    for (let i = 0; i < d.length; i += 48) {
+      const n = (Math.random() - 0.5) * 32
       d[i] = clamp(d[i] + n)
       d[i + 1] = clamp(d[i + 1] + n)
       d[i + 2] = clamp(d[i + 2] + n)
